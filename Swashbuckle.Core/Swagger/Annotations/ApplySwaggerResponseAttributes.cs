@@ -23,7 +23,7 @@ namespace Swashbuckle.Swagger.Annotations
                 operation.responses[statusCode] = new Response
                 {
                     description = attr.Description ?? InferDescriptionFrom(statusCode),
-                    schema = (attr.Type != null) ? schemaRegistry.GetOrRegister(attr.Type) : null
+                    schema = (attr.Type != null) ? schemaRegistry.GetOrRegister(attr.Type, attr.TypeName) : null
                 };
             }
         }

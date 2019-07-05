@@ -19,6 +19,7 @@ namespace Swashbuckle.Dummy.Controllers
             throw new NotImplementedException();
         }
 
+        [SwaggerResponse( 200, Type = typeof( IEnumerable<Message> ), TypeName = "Messages" )]
         public IEnumerable<Message> GetAll()
         {
             throw new NotImplementedException();

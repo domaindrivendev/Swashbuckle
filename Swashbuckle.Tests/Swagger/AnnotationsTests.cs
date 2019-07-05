@@ -86,8 +86,8 @@ namespace Swashbuckle.Tests.Swagger
                 });
             Assert.AreEqual(expected.ToString(), postResponses.ToString());
 
-            var getResponses = swagger["paths"]["/swaggerannotated"]["get"]["responses"];
-            expected = JObject.FromObject(new Dictionary<string, object>()
+            var getResponses = swagger[ "paths" ][ "/swaggerannotated" ][ "get" ][ "responses" ];
+            expected = JObject.FromObject( new Dictionary<string, object>()
                 {
                     {
                         "200", new
@@ -96,7 +96,8 @@ namespace Swashbuckle.Tests.Swagger
                             schema = new
                             {
                                 type = "array",
-                                items = JObject.Parse("{ $ref: \"#/definitions/Message\" }") 
+                                items = JObject.Parse("{ $ref: \"#/definitions/Message\" }"),
+                                xml = JObject.Parse( "{ \"name\": \"Messages\", \"wrapped\": true }" )
                             }
                         }
                     },
@@ -106,8 +107,8 @@ namespace Swashbuckle.Tests.Swagger
                             description = "Bad request"
                         }
                     }
-                });
-            Assert.AreEqual(expected.ToString(), getResponses.ToString());
+                } );
+            Assert.AreEqual( expected.ToString(), getResponses.ToString() );
         }
 
         [Test]

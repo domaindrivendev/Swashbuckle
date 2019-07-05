@@ -220,7 +220,8 @@ namespace Swashbuckle.Tests.Swagger
                                             schema = new
                                             {
                                                 type = "array",
-                                                items = JObject.Parse("{ $ref: \"#/definitions/Product\" }")
+                                                items = JObject.Parse("{ $ref: \"#/definitions/Product\" }"),
+                                                xml = JObject.Parse( "{ \"name\": \"Product\", \"wrapped\": true }" )
                                             }
                                         }
                                     }

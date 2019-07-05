@@ -64,7 +64,8 @@ namespace Swashbuckle.Tests.Swagger
                                 format = "double",
                                 type = "number"
                             }
-                        }
+                        },
+                        xml = JObject.Parse( "{ \"name\": \"Product\" }" )
                     }
                 });
             Assert.AreEqual(expected.ToString(), definitions.ToString());
@@ -136,7 +137,8 @@ namespace Swashbuckle.Tests.Swagger
                             minLength = 10,
                             type = "string"
                         }
-                    }
+                    },
+                    xml = JObject.Parse( "{ \"name\": \"PaymentWithMetadata\" }" )
                 }
             });
             Assert.AreEqual(expected.ToString(), definitions.ToString());
@@ -189,7 +191,8 @@ namespace Swashbuckle.Tests.Swagger
                                 minLength = 10,
                                 type = "string"
                             }
-                        }
+                        },
+                        xml = JObject.Parse( "{ \"name\": \"Payment\" }" )
                     }
                 });
             Assert.AreEqual(expected.ToString(), definitions.ToString());
@@ -224,7 +227,8 @@ namespace Swashbuckle.Tests.Swagger
                             {
                                 type = "string"
                             }
-                        }
+                        },
+                        xml = JObject.Parse( "{ \"name\": \"Elephant\" }" )
                     },
                     Animal = new
                     {
@@ -235,7 +239,8 @@ namespace Swashbuckle.Tests.Swagger
                             {
                                 type = "string"
                             }
-                        }
+                        },
+                        xml = JObject.Parse( "{ \"name\": \"Animal\" }" )
                     }
                 });
             Assert.AreEqual(expected.ToString(), definitions.ToString());
@@ -261,7 +266,8 @@ namespace Swashbuckle.Tests.Swagger
                                 format = "int32",
                                 type = "integer"
                             }
-                        }
+                        },
+                        xml = JObject.Parse( "{ \"name\": \"Lookup\" }" )
                     }
                 });
             Assert.AreEqual(expected.ToString(), definitions.ToString());
@@ -293,7 +299,8 @@ namespace Swashbuckle.Tests.Swagger
                                 @enum = new[] { "A", "B" },
                                 type = "string"
                             }
-                        }
+                        },
+                        xml = JObject.Parse( "{ \"name\": \"JsonRequest\" }" )
                     }
                 });
             Assert.AreEqual(expected.ToString(), definitions.ToString());
@@ -496,8 +503,7 @@ namespace Swashbuckle.Tests.Swagger
         [TestCase("EchoDateTime", typeof(DateTime), "string", "date-time", "System.DateTime", false)]
         [TestCase("EchoDateTimeOffset", typeof(DateTimeOffset), "string", "date-time", "System.DateTimeOffset", false)]
         [TestCase("EchoTimeSpan", typeof(TimeSpan), "string", null, "System.TimeSpan", false)]
-        [TestCase("EchoEnum", typeof(PrimitiveEnum), "integer", "int32", "Swashbuckle.Dummy.Types.PrimitiveEnum", false)]
-        [TestCase("EchoEnum", typeof(PrimitiveEnum), "string", null, "Swashbuckle.Dummy.Types.PrimitiveEnum", false)]
+        [TestCase("EchoGuid", typeof(Guid), "string", "uuid", "System.Guid", false)]
         [TestCase("EchoChar", typeof(char), "string", null, "System.Char", false)]
         [TestCase("EchoNullableBoolean", typeof(bool?), "boolean", null, "System.Boolean", true)]
         [TestCase("EchoNullableByte", typeof(byte?), "integer", "int32", "System.Byte", true)]
@@ -571,7 +577,7 @@ namespace Swashbuckle.Tests.Swagger
                         type = "array",
                         items = expectedParameterItems
                     }
-                });
+                } );
             Assert.AreEqual(expectedParameter.ToString(), parameter.ToString());
 
             var expectedResponseItems = new Dictionary<string, object>();
@@ -592,7 +598,88 @@ namespace Swashbuckle.Tests.Swagger
                 {
                     type = "array",
                     items = expectedResponseItems
-                });
+                } );
+            Assert.AreEqual(expectedResponse.ToString(), response.ToString());
+        }
+
+        [TestCase( "EchoEnum", typeof( PrimitiveEnum ), "integer", "int32", "Swashbuckle.Dummy.Types.PrimitiveEnum", false )]
+        [TestCase( "EchoEnum", typeof( PrimitiveEnum ), "string", null, "Swashbuckle.Dummy.Types.PrimitiveEnum", false )]
+        public void It_exposes_config_to_post_modify_schemas_for_primitive_enum_arrays( string action, Type dotNetType, string type, string format, string xtypeDotNet, bool xnullable )
+        {
+            var underlyingDotNetType = Nullable.GetUnderlyingType( dotNetType ) ?? dotNetType;
+            SetUpCustomRouteFor<PrimitiveArrayTypesController>( "PrimitiveArrayTypes/{action}" );
+            SetUpHandler( c => {
+                if( underlyingDotNetType.IsEnum && type == "string" )
+                {
+                    c.DescribeAllEnumsAsStrings();
+                }
+                c.SchemaFilter<ApplySchemaVendorExtensions>();
+                c.ApplyFiltersToAllSchemas();
+            } );
+
+            var swagger = GetContent<JObject>( "http://tempuri.org/swagger/docs/v1" );
+            var operation = swagger[ "paths" ][ "/PrimitiveArrayTypes/" + action ][ "post" ];
+            var parameter = operation[ "parameters" ][ 0 ];
+            var response = operation[ "responses" ][ "200" ][ "schema" ];
+
+            var method = typeof( PrimitiveArrayTypesController ).GetMethod( action );
+            Assert.AreEqual( dotNetType.MakeArrayType(), method.GetParameters()[ 0 ].ParameterType );
+            Assert.AreEqual( dotNetType.MakeArrayType(), method.ReturnType );
+
+            var expectedParameterItems = new Dictionary<string, object>();
+            if( format != null )
+            {
+                expectedParameterItems.Add( "format", format );
+            }
+            if( underlyingDotNetType.IsEnum )
+            {
+                expectedParameterItems.Add( "enum", type == "string" ? underlyingDotNetType.GetEnumNames() : underlyingDotNetType.GetEnumValues() );
+            }
+            expectedParameterItems.Add( "type", type );
+            expectedParameterItems.Add( "x-type-dotnet", xtypeDotNet );
+            expectedParameterItems.Add( "x-nullable", xnullable );
+            var expectedParameter = ( format == "byte" ) // Special case
+                ? JObject.FromObject( new
+                {
+                    name = "value",
+                    @in = "body",
+                    required = true,
+                    schema = expectedParameterItems
+                } )
+                : JObject.FromObject( new
+                {
+                    name = "value",
+                    @in = "body",
+                    required = true,
+                    schema = new
+                    {
+                        type = "array",
+                        items = expectedParameterItems,
+                        xml = JObject.Parse("{ \"name\": \"PrimitiveEnum\", \"wrapped\": true }")
+                    }
+                } );
+            Assert.AreEqual(expectedParameter.ToString(), parameter.ToString());
+
+            var expectedResponseItems = new Dictionary<string, object>();
+            if( format != null )
+            {
+                expectedResponseItems.Add( "format", format );
+            }
+            if( underlyingDotNetType.IsEnum )
+            {
+                expectedResponseItems.Add( "enum", type == "string" ? underlyingDotNetType.GetEnumNames() : underlyingDotNetType.GetEnumValues() );
+            }
+            expectedResponseItems.Add( "type", type );
+            expectedResponseItems.Add( "x-type-dotnet", xtypeDotNet );
+            expectedResponseItems.Add( "x-nullable", xnullable );
+            var expectedResponse = ( format == "byte" ) // Special case
+                ? JObject.FromObject( expectedResponseItems )
+                : JObject.FromObject( new
+                {
+                    type = "array",
+                    items = expectedResponseItems,
+                    xml = JObject.Parse("{ \"name\": \"PrimitiveEnum\", \"wrapped\": true }")
+                } );
             Assert.AreEqual(expectedResponse.ToString(), response.ToString());
         }
 
@@ -671,9 +758,11 @@ namespace Swashbuckle.Tests.Swagger
                             LineItems = new
                             {
                                 type = "array",
-                                items = JObject.Parse("{ $ref: \"#/definitions/LineItem\" }")
+                                items = JObject.Parse("{ $ref: \"#/definitions/LineItem\" }"),
+                                xml = JObject.Parse( "{ \"name\": \"LineItem\", \"wrapped\": true }" )
                             }
-                        }
+                        },
+                        xml = JObject.Parse( "{ \"name\": \"Order\" }" )
                     },
                     LineItem = new
                     {
@@ -690,7 +779,8 @@ namespace Swashbuckle.Tests.Swagger
                                 format = "int32",
                                 type = "integer"
                             }
-                        }
+                        },
+                        xml = JObject.Parse( "{ \"name\": \"LineItem\" }" )
                     }
                 });
             Assert.AreEqual(expected.ToString(), definitions.ToString());
@@ -720,9 +810,11 @@ namespace Swashbuckle.Tests.Swagger
                             SubComponents = new
                             {
                                 type = "array",
-                                items = JObject.Parse("{ $ref: \"#/definitions/Component\" }")
+                                items = JObject.Parse("{ $ref: \"#/definitions/Component\" }"),
+                                xml = JObject.Parse( "{ \"name\": \"Component\", \"wrapped\": true }" )
                             }
-                        }
+                        },
+                        xml = JObject.Parse( "{ \"name\": \"Component\" }" )
                     },
                     // Breaks current swagger-ui
                     //ListOfSelf = new
@@ -783,8 +875,9 @@ namespace Swashbuckle.Tests.Swagger
                                 Name = new
                                 {
                                     type = "string" 
-                                } 
-                            }
+                                }
+                            },
+                            xml = JObject.Parse("{ \"name\": \"DynamicObjectSubType\" }")
                         }
                     }
                 });
@@ -816,7 +909,8 @@ namespace Swashbuckle.Tests.Swagger
                                     format = "int32",
                                     type = "integer"
                                 }
-                            }
+                            },
+                            xml = JObject.Parse("{ \"name\": \"Contact\" }")
                         }
                     }
                 });
